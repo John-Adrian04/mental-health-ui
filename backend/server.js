@@ -1,11 +1,13 @@
-const express = require('express');
-const mysql = require('mysql2');
-const cors = require('cors');
-require('dotenv').config();
+import express from 'express';
+import mysql from 'mysql2';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 
-// 1. Allow your GitHub Pages site to access this API
+// 1. Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -31,12 +33,12 @@ db.getConnection((err, connection) => {
     }
 });
 
-// 4. Sample Route (to check if the API is alive)
+// 4. Sample Route
 app.get('/', (req, res) => {
     res.send('Mental Health UI Backend is running on Render!');
 });
 
-// 5. Example API Route (Replace with your actual table names)
+// 5. Example API Route
 app.get('/api/test', (req, res) => {
     db.query('SELECT 1 + 1 AS solution', (err, results) => {
         if (err) return res.status(500).json(err);
