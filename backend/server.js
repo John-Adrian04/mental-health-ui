@@ -2,89 +2,84 @@ import express from 'express';
 import mysql from 'mysql2';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import morgan from 'morgan'; // Professional Logger
+import { rateLimit } from 'express-rate-limit'; // Security Rate Limiter
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
-// 1. Middleware
+// --- EXTRA CREDIT: PROFESSIONAL LOGGING ---
+// This will log every request automatically (e.g., "GET /api/history 200")
+app.use(morgan('dev')); 
+
 app.use(cors());
 app.use(express.json());
 
-// 2. Database Connection Pool
+// --- EXTRA CREDIT: RATE LIMITING ---
+// Limits each IP to 50 requests per 15 minutes to prevent abuse
+const limiter = rateLimit({
+	windowMs: 15 * 60 * 1000, 
+	limit: 50, 
+	standardHeaders: 'draft-7',
+	legacyHeaders: false,
+    message: { error: "Too many requests, please try again later." }
+});
+app.use('/api/', limiter); // Apply security only to API routes
+
+// Mock AI Engine
+const getAIResponse = (mood) => {
+    const responses = {
+        '😊 Radiant': "That's amazing! Keep that positive energy flowing!",
+        '😐 Balanced': "Balance is beautiful. You're doing a great job.",
+        '😢 Healing': "Healing is a journey. Be kind to yourself today.",
+        '😠 Overwhelmed': "Take a deep breath. Focus on one small thing at a time."
+    };
+    return responses[mood] || "Thank you for sharing. I'm here for you.";
+};
+
 const db = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '123456',
+    database: process.env.DB_NAME || 'mental-health-db',
     port: process.env.DB_PORT || 3306,
     waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    ssl: {
-        rejectUnauthorized: false // Fixes "self-signed certificate" error
-    }
+    connectionLimit: 10
 });
 
-// 3. Verify Connection on Startup
-db.getConnection((err, connection) => {
-    if (err) {
-        console.error('❌ Database connection failed:', err.message);
-    } else {
-        console.log('✅ Connected to Railway MySQL Database!');
-        connection.release();
-    }
-});
-
-// 4. API Routes
-
-// TEST ROUTE: Check if API is alive
-app.get('/', (req, res) => {
-    res.send('Mental Health API is online and healthy.');
-});
-
-// GET ROUTE: Fetch all entries to show in the UI
 app.get('/api/history', (req, res) => {
-    // Note: 'created_at' works even if the type is DATE or TIMESTAMP
     const sql = "SELECT * FROM entries ORDER BY created_at DESC";
     db.query(sql, (err, results) => {
-        if (err) {
-            console.error("❌ Fetch Error:", err.message);
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         res.json(results);
     });
 });
 
-// POST ROUTE: Save a new entry from the UI
 app.post('/api/mood', (req, res) => {
     const { mood, note } = req.body;
+    if (!mood) return res.status(400).json({ error: "Mood is required" });
 
-    // Safety check: Don't save empty data
-    if (!mood) {
-        return res.status(400).json({ error: "Mood is required to save an entry." });
-    }
-
-    // IMPORTANT: If your column in Railway is named 'nood' instead of 'mood',
-    // change 'mood' to 'nood' in the line below:
+    const aiMessage = getAIResponse(mood);
     const sql = "INSERT INTO entries (mood, note) VALUES (?, ?)";
-    
+
     db.query(sql, [mood, note], (err, result) => {
-        if (err) {
-            console.error("❌ Insert Error:", err.message);
-            // This sends the exact error back to your browser console (F12)
-            return res.status(500).json({ error: err.message });
-        }
-        
-        console.log("✅ Successfully saved to Railway. ID:", result.insertId);
+        if (err) return res.status(500).json({ error: err.message });
         res.json({ 
-            message: "Entry saved successfully!", 
-            id: result.insertId 
+            message: "Saved locally!", 
+            aiResponse: aiMessage 
         });
     });
 });
 
-// 5. Start Server
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", message: "API running" });
+});
+
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server is live on port ${PORT}`);
