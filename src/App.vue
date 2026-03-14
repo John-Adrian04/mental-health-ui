@@ -70,7 +70,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-const API_URL = "http://localhost:10000";
+const API_URL = "https://your-render-app-name.onrender.com";
 const loading = ref(false);
 const history = ref([]);
 const aiFeedback = ref(''); // New state for AI message

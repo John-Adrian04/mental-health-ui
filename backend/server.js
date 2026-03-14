@@ -4,8 +4,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import morgan from 'morgan'; // Professional Logger
-import { rateLimit } from 'express-rate-limit'; // Security Rate Limiter
+import morgan from 'morgan';
+import { rateLimit } from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,25 +13,19 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 
-// --- EXTRA CREDIT: PROFESSIONAL LOGGING ---
-// This will log every request automatically (e.g., "GET /api/history 200")
-app.use(morgan('dev')); 
-
+app.use(morgan('dev')); // Professional Logging
 app.use(cors());
 app.use(express.json());
 
-// --- EXTRA CREDIT: RATE LIMITING ---
-// Limits each IP to 50 requests per 15 minutes to prevent abuse
 const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, 
-	limit: 50, 
-	standardHeaders: 'draft-7',
-	legacyHeaders: false,
+    windowMs: 15 * 60 * 1000, 
+    limit: 50, 
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
     message: { error: "Too many requests, please try again later." }
 });
-app.use('/api/', limiter); // Apply security only to API routes
+app.use('/api/', limiter); // Security Rate Limiting
 
-// Mock AI Engine
 const getAIResponse = (mood) => {
     const responses = {
         '😊 Radiant': "That's amazing! Keep that positive energy flowing!",
@@ -42,14 +36,13 @@ const getAIResponse = (mood) => {
     return responses[mood] || "Thank you for sharing. I'm here for you.";
 };
 
+// --- CONNECT TO AIVEN CLOUD DATABASE ---
 const db = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '123456',
-    database: process.env.DB_NAME || 'mental-health-db',
-    port: process.env.DB_PORT || 3306,
+    // Uses the Aiven URI from Render environment variables
+    uri: process.env.DATABASE_URL || `mysql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
     waitForConnections: true,
-    connectionLimit: 10
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
 app.get('/api/history', (req, res) => {
@@ -70,7 +63,7 @@ app.post('/api/mood', (req, res) => {
     db.query(sql, [mood, note], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ 
-            message: "Saved locally!", 
+            message: "Saved to cloud!", 
             aiResponse: aiMessage 
         });
     });
