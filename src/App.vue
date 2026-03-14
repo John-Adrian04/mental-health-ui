@@ -70,7 +70,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
-const API_URL = "https://your-render-app-name.onrender.com";
+const API_URL = "https://mental-health-ui-1nt5.onrender.com";
 const loading = ref(false);
 const history = ref([]);
 const aiFeedback = ref(''); // New state for AI message
